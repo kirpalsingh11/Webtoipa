@@ -17,7 +17,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +37,8 @@ jobs:
 
       - name: Create Xcode Project
         run: |
+          set -euo pipefail
+
           mkdir -p WebViewApp/WebViewApp
           cd WebViewApp
 
@@ -169,8 +171,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
           sed -i '' "s|BUNDLEID_PLACEHOLDER|${{ steps.inputs.outputs.bid }}|g" WebViewApp/Info.plist
           sed -i '' "s|APPNAME_PLACEHOLDER|${{ steps.inputs.outputs.name }}|g" WebViewApp/Info.plist
 
-          # Generate Xcode project using xcodegen
-          # We'll use a generated project.pbxproj
+          # Generate Xcode project using a fixed project.pbxproj
           cat > WebViewApp.xcodeproj/project.pbxproj << 'PBX'
           // !\$*UTF8*$!
           {
@@ -505,10 +506,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
       - name: Build IPA (unsigned)
         run: |
+          set -euo pipefail
           cd WebViewApp
+          # Use target build and explicit derivedData path
           xcodebuild \
             -project WebViewApp.xcodeproj \
-            -scheme WebViewApp \
+            -target WebViewApp \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -516,14 +519,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             clean build \
-            DERIVED_DATA_PATH=build
+            -derivedDataPath build
 
       - name: Create IPA
         run: |
+          set -euo pipefail
           cd WebViewApp
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/WebViewApp.app Payload/
-          zip -r WebViewApp.ipa Payload/
+          (cd Payload && zip -r ../WebViewApp.ipa WebViewApp.app) || (echo "Failed to create IPA" && exit 1)
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
