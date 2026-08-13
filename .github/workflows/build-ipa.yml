@@ -1,3 +1,4 @@
+
 name: Build iOS IPA from Website
 
 on:
@@ -17,22 +18,32 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Log Xcode environment
+        run: |
+          set -euo pipefail
+          echo "Xcode version:"
+          xcodebuild -version
+          echo ""
+          echo "Available SDKs:"
+          xcodebuild -showsdks | grep iphoneos
+
       - name: Get inputs
         id: inputs
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "url=${{ github.event.client_payload.website_url }}" >> $GITHUB_OUTPUT
-            echo "name=${{ github.event.client_payload.app_name }}" >> $GITHUB_OUTPUT
-            echo "bid=${{ github.event.client_payload.bundle_id }}" >> $GITHUB_OUTPUT
+            echo "url=${{ github.event.client_payload.website_url }}" >> "$GITHUB_OUTPUT"
+            echo "name=${{ github.event.client_payload.app_name }}" >> "$GITHUB_OUTPUT"
+            echo "bid=${{ github.event.client_payload.bundle_id }}" >> "$GITHUB_OUTPUT"
           else
-            echo "url=${{ inputs.website_url }}" >> $GITHUB_OUTPUT
-            echo "name=${{ inputs.app_name }}" >> $GITHUB_OUTPUT
-            echo "bid=${{ inputs.bundle_id }}" >> $GITHUB_OUTPUT
+            echo "url=${{ inputs.website_url }}" >> "$GITHUB_OUTPUT"
+            echo "name=${{ inputs.app_name }}" >> "$GITHUB_OUTPUT"
+            echo "bid=${{ inputs.bundle_id }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create Xcode Project
@@ -42,484 +53,407 @@ jobs:
           mkdir -p WebViewApp/WebViewApp
           cd WebViewApp
 
-          # Create the Swift AppDelegate
+          # ---- Swift source files ----
+
           cat > WebViewApp/AppDelegate.swift << 'SWIFT'
-          import UIKit
+import UIKit
 
-          @main
+@main
 class AppDelegate: UIResponder, UIApplicationDelegate {
-              var window: UIWindow?
+    var window: UIWindow?
 
-              func application(_ application: UIApplication,
-                              didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-                  let webVC = WebViewController()
-                  webVC.urlString = "WEBSITE_URL_PLACEHOLDER"
-                  window = UIWindow(frame: UIScreen.main.bounds)
-                  window?.rootViewController = UINavigationController(rootViewController: webVC)
-                  window?.makeKeyAndVisible()
-                  return true
-              }
-          }
-          SWIFT
+    func application(_ application: UIApplication,
+                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        let webVC = WebViewController()
+        webVC.urlString = "WEBSITE_URL_PLACEHOLDER"
+        window = UIWindow(frame: UIScreen.main.bounds)
+        window?.rootViewController = UINavigationController(rootViewController: webVC)
+        window?.makeKeyAndVisible()
+        return true
+    }
+}
+SWIFT
 
-          # Replace placeholder
           sed -i '' "s|WEBSITE_URL_PLACEHOLDER|${{ steps.inputs.outputs.url }}|g" WebViewApp/AppDelegate.swift
 
-          # Create WebViewController
           cat > WebViewApp/WebViewController.swift << 'SWIFT'
-          import UIKit
-          import WebKit
+import UIKit
+import WebKit
 
-          class WebViewController: UIViewController, WKNavigationDelegate {
-              var urlString: String = ""
-              private var webView: WKWebView!
-              private var progressView: UIProgressView!
+class WebViewController: UIViewController, WKNavigationDelegate {
+    var urlString: String = ""
+    private var webView: WKWebView!
+    private var progressView: UIProgressView!
 
-              override func viewDidLoad() {
-                  super.viewDidLoad()
-                  title = "APPNAME_PLACEHOLDER"
-                  view.backgroundColor = .systemBackground
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "APPNAME_PLACEHOLDER"
+        view.backgroundColor = .systemBackground
 
-                  // Progress bar
-                  progressView = UIProgressView(progressViewStyle: .default)
-                  progressView.translatesAutoresizingMaskIntoConstraints = false
-                  view.addSubview(progressView)
+        progressView = UIProgressView(progressViewStyle: .default)
+        progressView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(progressView)
 
-                  // WebView
-                  let config = WKWebViewConfiguration()
-                  config.allowsInlineMediaPlayback = true
-                  webView = WKWebView(frame: .zero, configuration: config)
-                  webView.navigationDelegate = self
-                  webView.translatesAutoresizingMaskIntoConstraints = false
-                  webView.allowsBackForwardNavigationGestures = true
-                  view.addSubview(webView)
+        let config = WKWebViewConfiguration()
+        config.allowsInlineMediaPlayback = true
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        webView.allowsBackForwardNavigationGestures = true
+        view.addSubview(webView)
 
-                  NSLayoutConstraint.activate([
-                      progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-                      progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                      progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                      webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
-                      webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-                      webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-                      webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-                  ])
+        NSLayoutConstraint.activate([
+            progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
 
-                  if let url = URL(string: urlString) {
-                      webView.load(URLRequest(url: url))
-                  }
+        if let url = URL(string: urlString) {
+            webView.load(URLRequest(url: url))
+        }
+        webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
+    }
 
-                  webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
-              }
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?,
+                              change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
+        if keyPath == "estimatedProgress" {
+            progressView.progress = Float(webView.estimatedProgress)
+            progressView.isHidden = webView.estimatedProgress >= 1.0
+        }
+    }
 
-              override func observeValue(forKeyPath keyPath: String?, of object: Any?,
-                                        change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
-                  if keyPath == "estimatedProgress" {
-                      progressView.progress = Float(webView.estimatedProgress)
-                      progressView.isHidden = webView.estimatedProgress >= 1.0
-                  }
-              }
-
-              func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-                  progressView.isHidden = true
-              }
-          }
-          SWIFT
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        progressView.isHidden = true
+    }
+}
+SWIFT
 
           sed -i '' "s|APPNAME_PLACEHOLDER|${{ steps.inputs.outputs.name }}|g" WebViewApp/WebViewController.swift
 
-          # Create Info.plist
+          # ---- Info.plist ----
+
           cat > WebViewApp/Info.plist << 'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleDevelopmentRegion</key>
-              <string>en</string>
-              <key>CFBundleExecutable</key>
-              <string>WebViewApp</string>
-              <key>CFBundleIdentifier</key>
-              <string>BUNDLEID_PLACEHOLDER</string>
-              <key>CFBundleInfoDictionaryVersion</key>
-              <string>6.0</string>
-              <key>CFBundleName</key>
-              <string>APPNAME_PLACEHOLDER</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>1.0</string>
-              <key>CFBundleVersion</key>
-              <string>1</string>
-              <key>LSRequiresIPhoneOS</key>
-              <true/>
-              <key>UILaunchScreen</key>
-              <dict/>
-              <key>UISupportedInterfaceOrientations</key>
-              <array>
-                  <string>UIInterfaceOrientationPortrait</string>
-                  <string>UIInterfaceOrientationLandscapeLeft</string>
-                  <string>UIInterfaceOrientationLandscapeRight</string>
-              </array>
-              <key>NSAppTransportSecurity</key>
-              <dict>
-                  <key>NSAllowsArbitraryLoads</key>
-                  <true/>
-              </dict>
-          </dict>
-          </plist>
-          PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>WebViewApp</string>
+    <key>CFBundleIdentifier</key>
+    <string>BUNDLEID_PLACEHOLDER</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>APPNAME_PLACEHOLDER</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+</dict>
+</plist>
+PLIST
 
           sed -i '' "s|BUNDLEID_PLACEHOLDER|${{ steps.inputs.outputs.bid }}|g" WebViewApp/Info.plist
           sed -i '' "s|APPNAME_PLACEHOLDER|${{ steps.inputs.outputs.name }}|g" WebViewApp/Info.plist
 
-          # Generate Xcode project using a fixed project.pbxproj
+          # ---- project.pbxproj ----
+
+          mkdir -p WebViewApp.xcodeproj
           cat > WebViewApp.xcodeproj/project.pbxproj << 'PBX'
-          // !\$*UTF8*$!
-          {
-          	archiveVersion = 1;
-          	classes = {
-          	};
-          	objectVersion = 56;
-          	objects = {
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
 
-          /* Begin PBXBuildFile section */
-          		A10001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20001 /* AppDelegate.swift */; };
-          		A10002 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20002 /* WebViewController.swift */; };
-          /* End PBXBuildFile section */
+/* Begin PBXBuildFile section */
+		A10001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20001 /* AppDelegate.swift */; };
+		A10002 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20002 /* WebViewController.swift */; };
+/* End PBXBuildFile section */
 
-          /* Begin PBXFileReference section */
-          		A20001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-          		A20002 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
-          		A20003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-          		A20004 /* WebViewApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebViewApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-          		A20005 /* WebViewApp.ipa */ = {isa = PBXFileReference; explicitFileType = archive.ipa; includeInIndex = 0; path = WebViewApp.ipa; sourceTree = BUILT_PRODUCTS_DIR; };
-          /* End PBXFileReference section */
+/* Begin PBXFileReference section */
+		A20001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A20002 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
+		A20003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20004 /* WebViewApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebViewApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
 
-          /* Begin PBXFrameworksBuildPhase section */
-          		A30001 /* Frameworks */ = {
-          			isa = PBXFrameworksBuildPhase;
-          			buildActionMask = 2147483647;
-          			files = (
-          			);
-          			runOnlyForDeploymentPostprocessing = 0;
-          		};
-          /* End PBXFrameworksBuildPhase section */
+/* Begin PBXFrameworksBuildPhase section */
+		A30001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
-          /* Begin PBXGroup section */
-          		A40001 = {
-          			isa = PBXGroup;
-          			children = (
-          				A20001 /* AppDelegate.swift */,
-          				A20002 /* WebViewController.swift */,
-          				A20003 /* Info.plist */,
-          			);
-          			path = WebViewApp;
-          			sourceTree = "<group>";
-          		};
-          		A40002 /* Products */ = {
-          			isa = PBXGroup;
-          			children = (
-          				A20004 /* WebViewApp.app */,
-          			);
-          			name = Products;
-          			sourceTree = "<group>";
-          		};
-          		A40003 = {
-          			isa = PBXGroup;
-          			children = (
-          				A40001,
-          				A40002,
-          			);
-          			sourceTree = "<group>";
-          		};
-          /* End PBXGroup section */
+/* Begin PBXGroup section */
+		A40001 = {
+			isa = PBXGroup;
+			children = (
+				A20001 /* AppDelegate.swift */,
+				A20002 /* WebViewController.swift */,
+				A20003 /* Info.plist */,
+			);
+			path = WebViewApp;
+			sourceTree = "<group>";
+		};
+		A40002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20004 /* WebViewApp.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A40003 = {
+			isa = PBXGroup;
+			children = (
+				A40001,
+				A40002,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
 
-          /* Begin PBXNativeTarget section */
-          		A50001 /* WebViewApp */ = {
-          			isa = PBXNativeTarget;
-          			buildConfigurationList = A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */;
-          			buildPhases = (
-          				A30001 /* Frameworks */,
-          				A60001 /* Sources */,
-          				A60002 /* Resources */,
-          			);
-          			buildRules = (
-          			);
-          			dependencies = (
-          			);
-          			name = WebViewApp;
-          			productName = WebViewApp;
-          			productReference = A20004 /* WebViewApp.app */;
-          			productType = "com.apple.product-type.application";
-          		};
-          /* End PBXNativeTarget section */
+/* Begin PBXNativeTarget section */
+		A50001 /* WebViewApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */;
+			buildPhases = (
+				A30001 /* Frameworks */,
+				A60001 /* Sources */,
+				A60002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WebViewApp;
+			productName = WebViewApp;
+			productReference = A20004 /* WebViewApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
 
-          /* Begin PBXProject section */
-          		A80001 /* Project object */ = {
-          			isa = PBXProject;
-          			attributes = {
-          				BuildIndependentTargetsInParallel = 1;
-          				LastSwiftUpdateCheck = 1500;
-          				LastUpgradeCheck = 1500;
-          			};
-          			buildConfigurationList = A70003 /* Build configuration list for PBXProject "WebViewApp" */;
-          			compatibilityVersion = "Xcode 14.0";
-          			developmentRegion = en;
-          			hasScannedForEncodings = 0;
-          			knownRegions = (
-          				en,
-          				Base,
-          			);
-          			mainGroup = A40003;
-          			productRefGroup = A40002 /* Products */;
-          			projectDirPath = "";
-          			projectRoot = "";
-          			targets = (
-          				A50001 /* WebViewApp */,
-          			);
-          		};
-          /* End PBXProject section */
+/* Begin PBXProject section */
+		A80001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = A70003 /* Build configuration list for PBXProject "WebViewApp" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A40003;
+			productRefGroup = A40002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50001 /* WebViewApp */,
+			);
+		};
+/* End PBXProject section */
 
-          /* Begin PBXResourcesBuildPhase section */
-          		A60002 /* Resources */ = {
-          			isa = PBXResourcesBuildPhase;
-          			buildActionMask = 2147483647;
-          			files = (
-          			);
-          			runOnlyForDeploymentPostprocessing = 0;
-          		};
-          /* End PBXResourcesBuildPhase section */
+/* Begin PBXResourcesBuildPhase section */
+		A60002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
-          /* Begin PBXSourcesBuildPhase section */
-          		A60001 /* Sources */ = {
-          			isa = PBXSourcesBuildPhase;
-          			buildActionMask = 2147483647;
-          			files = (
-          				A10001 /* AppDelegate.swift in Sources */,
-          				A10002 /* WebViewController.swift in Sources */,
-          			);
-          			runOnlyForDeploymentPostprocessing = 0;
-          		};
-          /* End PBXSourcesBuildPhase section */
+/* Begin PBXSourcesBuildPhase section */
+		A60001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* AppDelegate.swift in Sources */,
+				A10002 /* WebViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
 
-          /* Begin XCBuildConfiguration section */
-          		A90001 /* Debug */ = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				ALWAYS_SEARCH_USER_PATHS = NO;
-          				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-          				CLANG_ANALYZER_NONNULL = YES;
-          				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-          				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-          				CLANG_ENABLE_MODULES = YES;
-          				CLANG_ENABLE_OBJC_ARC = YES;
-          				CLANG_ENABLE_OBJC_WEAK = YES;
-          				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-          				CLANG_WARN_BOOL_CONVERSION = YES;
-          				CLANG_WARN_COMMA = YES;
-          				CLANG_WARN_CONSTANT_CONVERSION = YES;
-          				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-          				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-          				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-          				CLANG_WARN_EMPTY_BODY = YES;
-          				CLANG_WARN_ENUM_CONVERSION = YES;
-          				CLANG_WARN_INFINITE_RECURSION = YES;
-          				CLANG_WARN_INT_CONVERSION = YES;
-          				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-          				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-          				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-          				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-          				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-          				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-          				CLANG_WARN_STRICT_PROTOTYPES = YES;
-          				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-          				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-          				CLANG_WARN_UNREACHABLE_CODE = YES;
-          				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-          				COPY_PHASE_STRIP = NO;
-          				DEBUG_INFORMATION_FORMAT = dwarf;
-          				ENABLE_STRICT_OBJC_MSGSEND = YES;
-          				ENABLE_TESTABILITY = YES;
-          				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-          				GCC_C_LANGUAGE_STANDARD = gnu17;
-          				GCC_DYNAMIC_NO_PIC = NO;
-          				GCC_NO_COMMON_BLOCKS = YES;
-          				GCC_OPTIMIZATION_LEVEL = 0;
-          				GCC_PREPROCESSOR_DEFINITIONS = (
-          					"DEBUG=1",
-          					"$(inherited)",
-          				);
-          				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-          				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-          				GCC_WARN_UNDECLARED_SELECTOR = YES;
-          				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-          				GCC_WARN_UNUSED_FUNCTION = YES;
-          				GCC_WARN_UNUSED_VARIABLE = YES;
-          				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-          				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-          				MTL_FAST_MATH = YES;
-          				ONLY_ACTIVE_ARCH = YES;
-          				SDKROOT = iphoneos;
-          				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-          				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-          			};
-          			name = Debug;
-          		};
-          		A90002 /* Release */ = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				ALWAYS_SEARCH_USER_PATHS = NO;
-          				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-          				CLANG_ANALYZER_NONNULL = YES;
-          				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-          				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-          				CLANG_ENABLE_MODULES = YES;
-          				CLANG_ENABLE_OBJC_ARC = YES;
-          				CLANG_ENABLE_OBJC_WEAK = YES;
-          				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-          				CLANG_WARN_BOOL_CONVERSION = YES;
-          				CLANG_WARN_COMMA = YES;
-          				CLANG_WARN_CONSTANT_CONVERSION = YES;
-          				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-          				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-          				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-          				CLANG_WARN_EMPTY_BODY = YES;
-          				CLANG_WARN_ENUM_CONVERSION = YES;
-          				CLANG_WARN_INFINITE_RECURSION = YES;
-          				CLANG_WARN_INT_CONVERSION = YES;
-          				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-          				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-          				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-          				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-          				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-          				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-          				CLANG_WARN_STRICT_PROTOTYPES = YES;
-          				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-          				CLANG_WARN_UNREACHABLE_CODE = YES;
-          				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-          				COPY_PHASE_STRIP = NO;
-          				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-          				ENABLE_NS_ASSERTIONS = NO;
-          				ENABLE_STRICT_OBJC_MSGSEND = YES;
-          				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-          				GCC_C_LANGUAGE_STANDARD = gnu17;
-          				GCC_NO_COMMON_BLOCKS = YES;
-          				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-          				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-          				GCC_WARN_UNDECLARED_SELECTOR = YES;
-          				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-          				GCC_WARN_UNUSED_FUNCTION = YES;
-          				GCC_WARN_UNUSED_VARIABLE = YES;
-          				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-          				MTL_ENABLE_DEBUG_INFO = NO;
-          				MTL_FAST_MATH = YES;
-          				SDKROOT = iphoneos;
-          				SWIFT_COMPILATION_MODE = wholemodule;
-          				VALIDATE_PRODUCT = YES;
-          			};
-          			name = Release;
-          		};
-          		A90003 /* Debug */ = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-          				CODE_SIGN_STYLE = Manual;
-          				CODE_SIGN_IDENTITY = "-";
-          				CODE_SIGNING_REQUIRED = NO;
-          				CODE_SIGNING_ALLOWED = NO;
-          				CURRENT_PROJECT_VERSION = 1;
-          				GENERATE_INFOPLIST_FILE = NO;
-          				INFOPLIST_FILE = WebViewApp/Info.plist;
-          				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
-          				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
-          				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-          				LD_RUNPATH_SEARCH_PATHS = (
-          					"$(inherited)",
-          					"@executable_path/Frameworks",
-          				);
-          				MARKETING_VERSION = 1.0;
-          				OTHER_LDFLAGS = "-ObjC";
-          				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
-          				PRODUCT_NAME = "$(TARGET_NAME)";
-          				SWIFT_EMIT_LOC_STRINGS = YES;
-          				SWIFT_VERSION = 5.0;
-          				TARGETED_DEVICE_FAMILY = "1,2";
-          			};
-          			name = Debug;
-          		};
-          		A90004 /* Release */ = {
-          			isa = XCBuildConfiguration;
-          			buildSettings = {
-          				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-          				CODE_SIGN_STYLE = Manual;
-          				CODE_SIGN_IDENTITY = "-";
-          				CODE_SIGNING_REQUIRED = NO;
-          				CODE_SIGNING_ALLOWED = NO;
-          				CURRENT_PROJECT_VERSION = 1;
-          				GENERATE_INFOPLIST_FILE = NO;
-          				INFOPLIST_FILE = WebViewApp/Info.plist;
-          				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = NO;
-          				INFOPLIST_KEY_UILaunchScreen_Generation = NO;
-          				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-          				LD_RUNPATH_SEARCH_PATHS = (
-          					"$(inherited)",
-          					"@executable_path/Frameworks",
-          				);
-          				MARKETING_VERSION = 1.0;
-          				OTHER_LDFLAGS = "-ObjC";
-          				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
-          				PRODUCT_NAME = "$(TARGET_NAME)";
-          				SWIFT_EMIT_LOC_STRINGS = YES;
-          				SWIFT_VERSION = 5.0;
-          				TARGETED_DEVICE_FAMILY = "1,2";
-          			};
-          			name = Release;
-          		};
-          /* End XCBuildConfiguration section */
+/* Begin XCBuildConfiguration section */
+		A90001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A90002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A90003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WebViewApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A90004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = WebViewApp/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
 
-          /* Begin XCConfigurationList section */
-          		A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */ = {
-          			isa = XCConfigurationList;
-          			buildConfigurations = (
-          				A90003 /* Debug */,
-          				A90004 /* Release */,
-          			);
-          			defaultConfigurationIsVisible = 0;
-          			defaultConfigurationName = Release;
-          			};
-          		A70003 /* Build configuration list for PBXProject "WebViewApp" */ = {
-          			isa = XCConfigurationList;
-          			buildConfigurations = (
-          				A90001 /* Debug */,
-          				A90002 /* Release */,
-          			);
-          			defaultConfigurationIsVisible = 0;
-          			defaultConfigurationName = Release;
-          			};
-          /* End XCConfigurationList section */
-          };
-          	rootObject = A80001 /* Project object */;
-          }
-          PBX
+/* Begin XCConfigurationList section */
+		A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90003 /* Debug */,
+				A90004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+			};
+		A70003 /* Build configuration list for PBXProject "WebViewApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90001 /* Debug */,
+				A90002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+			};
+/* End XCConfigurationList section */
+	};
+	rootObject = A80001 /* Project object */;
+}
+PBX
 
           # Replace bundle ID placeholder in project file
           sed -i '' "s|BUNDLEID_PLACEHOLDER|${{ steps.inputs.outputs.bid }}|g" WebViewApp.xcodeproj/project.pbxproj
+
+          # Verify project structure
+          echo "Project structure:"
+          find . -type f | head -20
+          echo ""
+          echo "project.pbxproj first line:"
+          head -1 WebViewApp.xcodeproj/project.pbxproj
 
       - name: Build IPA (unsigned)
         run: |
           set -euo pipefail
           cd WebViewApp
-          # Use target build and explicit derivedData path
-          xcodebuild \
-            -project WebViewApp.xcodeproj \
-            -target WebViewApp \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            clean build \
-            -derivedDataPath build
+          xcodebuild             -project WebViewApp.xcodeproj             -target WebViewApp             -configuration Release             -sdk iphoneos             -destination 'generic/platform=iOS'             CODE_SIGN_IDENTITY="-"             CODE_SIGNING_REQUIRED=NO             CODE_SIGNING_ALLOWED=NO             -derivedDataPath build             clean build 2>&1 | tee build.log
+
+          echo ""
+          echo "Build log tail:"
+          tail -30 build.log
+
+          # Verify the .app was produced
+          APP_PATH="build/Build/Products/Release-iphoneos/WebViewApp.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: .app not found at $APP_PATH"
+            echo "Contents of build/Build/Products:"
+            find build/Build/Products -type d -name "*.app" 2>/dev/null || echo "(no .app found anywhere)"
+            exit 1
+          fi
+          echo "SUCCESS: .app found at $APP_PATH"
+          ls -la "$APP_PATH"
 
       - name: Create IPA
         run: |
@@ -527,7 +461,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
           cd WebViewApp
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/WebViewApp.app Payload/
-          (cd Payload && zip -r ../WebViewApp.ipa WebViewApp.app) || (echo "Failed to create IPA" && exit 1)
+          (cd Payload && zip -r ../WebViewApp.ipa WebViewApp.app)
+          echo "IPA created:"
+          ls -lh WebViewApp.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
@@ -538,10 +474,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
       - name: Build Summary
         run: |
-          echo "## Build Complete :rocket:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **App Name:** ${{ steps.inputs.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Website URL:** ${{ steps.inputs.outputs.url }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Bundle ID:** ${{ steps.inputs.outputs.bid }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the .ipa from the Artifacts section of this run." >> $GITHUB_STEP_SUMMARY
+          echo "## Build Complete :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **App Name:** ${{ steps.inputs.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Website URL:** ${{ steps.inputs.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Bundle ID:** ${{ steps.inputs.outputs.bid }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the .ipa from the Artifacts section of this run." >> "$GITHUB_STEP_SUMMARY"
