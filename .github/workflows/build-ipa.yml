@@ -382,4 +382,4 @@ jobs:
           echo "- **Website URL:** ${{ steps.inputs.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Bundle ID:** ${{ steps.inputs.outputs.bid }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Download the .ipa from the Artifacts section." >> "$GITHUB_STEP_SUMMARY
+          echo "Download the .ipa from the Artifacts section." >> "$GITHUB_STEP_SUMMARY"
