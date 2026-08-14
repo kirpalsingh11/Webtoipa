@@ -1,4 +1,3 @@
-
 name: Build iOS IPA from Website
 
 on:
@@ -23,15 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Log Xcode environment
-        run: |
-          set -euo pipefail
-          echo "Xcode version:"
-          xcodebuild -version
-          echo ""
-          echo "Available SDKs:"
-          xcodebuild -showsdks | grep iphoneos
-
       - name: Get inputs
         id: inputs
         run: |
@@ -49,390 +39,25 @@ jobs:
       - name: Create Xcode Project
         run: |
           set -euo pipefail
-
-          mkdir -p WebViewApp/WebViewApp
+          mkdir -p WebViewApp/WebViewApp WebViewApp/WebViewApp.xcodeproj
           cd WebViewApp
 
-          # ---- Swift source files ----
+          # Decode and write source files from base64
+          printf '%s' 'aW1wb3J0IFVJS2l0CgpAbWFpbgpjbGFzcyBBcHBEZWxlZ2F0ZTogVUlSZXNwb25kZXIsIFVJQXBwbGljYXRpb25EZWxlZ2F0ZSB7CiAgICB2YXIgd2luZG93OiBVSVdpbmRvdz8KCiAgICBmdW5jIGFwcGxpY2F0aW9uKF8gYXBwbGljYXRpb246IFVJQXBwbGljYXRpb24sCiAgICAgICAgICAgICAgICAgICAgICBkaWRGaW5pc2hMYXVuY2hpbmdXaXRoT3B0aW9ucyBsYXVuY2hPcHRpb25zOiBbVUlBcHBsaWNhdGlvbi5MYXVuY2hPcHRpb25zS2V5OiBBbnldPykgLT4gQm9vbCB7CiAgICAgICAgbGV0IHdlYlZDID0gV2ViVmlld0NvbnRyb2xsZXIoKQogICAgICAgIHdlYlZDLnVybFN0cmluZyA9ICJXRUJTSVRFX1VSTF9QTEFDRUhPTERFUiIKICAgICAgICB3aW5kb3cgPSBVSVdpbmRvdyhmcmFtZTogVUlTY3JlZW4ubWFpbi5ib3VuZHMpCiAgICAgICAgd2luZG93Py5yb290Vmlld0NvbnRyb2xsZXIgPSBVSU5hdmlnYXRpb25Db250cm9sbGVyKHJvb3RWaWV3Q29udHJvbGxlcjogd2ViVkMpCiAgICAgICAgd2luZG93Py5tYWtlS2V5QW5kVmlzaWJsZSgpCiAgICAgICAgcmV0dXJuIHRydWUKICAgIH0KfQo=' | base64 -D > WebViewApp/AppDelegate.swift
+          printf '%s' 'aW1wb3J0IFVJS2l0CmltcG9ydCBXZWJLaXQKCmNsYXNzIFdlYlZpZXdDb250cm9sbGVyOiBVSVZpZXdDb250cm9sbGVyLCBXS05hdmlnYXRpb25EZWxlZ2F0ZSB7CiAgICB2YXIgdXJsU3RyaW5nOiBTdHJpbmcgPSAiIgogICAgcHJpdmF0ZSB2YXIgd2ViVmlldzogV0tXZWJWaWV3IQogICAgcHJpdmF0ZSB2YXIgcHJvZ3Jlc3NWaWV3OiBVSVByb2dyZXNzVmlldyEKCiAgICBvdmVycmlkZSBmdW5jIHZpZXdEaWRMb2FkKCkgewogICAgICAgIHN1cGVyLnZpZXdEaWRMb2FkKCkKICAgICAgICB0aXRsZSA9ICJBUFBOQU1FX1BMQUNFSE9MREVSIgogICAgICAgIHZpZXcuYmFja2dyb3VuZENvbG9yID0gLnN5c3RlbUJhY2tncm91bmQKCiAgICAgICAgcHJvZ3Jlc3NWaWV3ID0gVUlQcm9ncmVzc1ZpZXcocHJvZ3Jlc3NWaWV3U3R5bGU6IC5kZWZhdWx0KQogICAgICAgIHByb2dyZXNzVmlldy50cmFuc2xhdGVzQXV0b3Jlc2l6aW5nTWFza0ludG9Db25zdHJhaW50cyA9IGZhbHNlCiAgICAgICAgdmlldy5hZGRTdWJ2aWV3KHByb2dyZXNzVmlldykKCiAgICAgICAgbGV0IGNvbmZpZyA9IFdLV2ViVmlld0NvbmZpZ3VyYXRpb24oKQogICAgICAgIGNvbmZpZy5hbGxvd3NJbmxpbmVNZWRpYVBsYXliYWNrID0gdHJ1ZQogICAgICAgIHdlYlZpZXcgPSBXS1dlYlZpZXcoZnJhbWU6IC56ZXJvLCBjb25maWd1cmF0aW9uOiBjb25maWcpCiAgICAgICAgd2ViVmlldy5uYXZpZ2F0aW9uRGVsZWdhdGUgPSBzZWxmCiAgICAgICAgd2ViVmlldy50cmFuc2xhdGVzQXV0b3Jlc2l6aW5nTWFza0ludG9Db25zdHJhaW50cyA9IGZhbHNlCiAgICAgICAgd2ViVmlldy5hbGxvd3NCYWNrRm9yd2FyZE5hdmlnYXRpb25HZXN0dXJlcyA9IHRydWUKICAgICAgICB2aWV3LmFkZFN1YnZpZXcod2ViVmlldykKCiAgICAgICAgTlNMYXlvdXRDb25zdHJhaW50LmFjdGl2YXRlKFsKICAgICAgICAgICAgcHJvZ3Jlc3NWaWV3LnRvcEFuY2hvci5jb25zdHJhaW50KGVxdWFsVG86IHZpZXcuc2FmZUFyZWFMYXlvdXRHdWlkZS50b3BBbmNob3IpLAogICAgICAgICAgICBwcm9ncmVzc1ZpZXcubGVhZGluZ0FuY2hvci5jb25zdHJhaW50KGVxdWFsVG86IHZpZXcubGVhZGluZ0FuY2hvciksCiAgICAgICAgICAgIHByb2dyZXNzVmlldy50cmFpbGluZ0FuY2hvci5jb25zdHJhaW50KGVxdWFsVG86IHZpZXcudHJhaWxpbmdBbmNob3IpLAogICAgICAgICAgICB3ZWJWaWV3LnRvcEFuY2hvci5jb25zdHJhaW50KGVxdWFsVG86IHByb2dyZXNzVmlldy5ib3R0b21BbmNob3IpLAogICAgICAgICAgICB3ZWJWaWV3LmxlYWRpbmdBbmNob3IuY29uc3RyYWludChlcXVhbFRvOiB2aWV3LmxlYWRpbmdBbmNob3IpLAogICAgICAgICAgICB3ZWJWaWV3LnRyYWlsaW5nQW5jaG9yLmNvbnN0cmFpbnQoZXF1YWxUbzogdmlldy50cmFpbGluZ0FuY2hvciksCiAgICAgICAgICAgIHdlYlZpZXcuYm90dG9tQW5jaG9yLmNvbnN0cmFpbnQoZXF1YWxUbzogdmlldy5ib3R0b21BbmNob3IpLAogICAgICAgIF0pCgogICAgICAgIGlmIGxldCB1cmwgPSBVUkwoc3RyaW5nOiB1cmxTdHJpbmcpIHsKICAgICAgICAgICAgd2ViVmlldy5sb2FkKFVSTFJlcXVlc3QodXJsOiB1cmwpKQogICAgICAgIH0KICAgICAgICB3ZWJWaWV3LmFkZE9ic2VydmVyKHNlbGYsIGZvcktleVBhdGg6ICJlc3RpbWF0ZWRQcm9ncmVzcyIsIG9wdGlvbnM6IC5uZXcsIGNvbnRleHQ6IG5pbCkKICAgIH0KCiAgICBvdmVycmlkZSBmdW5jIG9ic2VydmVWYWx1ZShmb3JLZXlQYXRoIGtleVBhdGg6IFN0cmluZz8sIG9mIG9iamVjdDogQW55PywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY2hhbmdlOiBbTlNLZXlWYWx1ZUNoYW5nZUtleTogQW55XT8sIGNvbnRleHQ6IFVuc2FmZU11dGFibGVSYXdQb2ludGVyPykgewogICAgICAgIGlmIGtleVBhdGggPT0gImVzdGltYXRlZFByb2dyZXNzIiB7CiAgICAgICAgICAgIHByb2dyZXNzVmlldy5wcm9ncmVzcyA9IEZsb2F0KHdlYlZpZXcuZXN0aW1hdGVkUHJvZ3Jlc3MpCiAgICAgICAgICAgIHByb2dyZXNzVmlldy5pc0hpZGRlbiA9IHdlYlZpZXcuZXN0aW1hdGVkUHJvZ3Jlc3MgPj0gMS4wCiAgICAgICAgfQogICAgfQoKICAgIGZ1bmMgd2ViVmlldyhfIHdlYlZpZXc6IFdLV2ViVmlldywgZGlkRmluaXNoIG5hdmlnYXRpb246IFdLTmF2aWdhdGlvbiEpIHsKICAgICAgICBwcm9ncmVzc1ZpZXcuaXNIaWRkZW4gPSB0cnVlCiAgICB9Cn0K' | base64 -D > WebViewApp/WebViewController.swift
+          printf '%s' 'PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk+Q0ZCdW5kbGVEZXZlbG9wbWVudFJlZ2lvbjwva2V5PgogICAgPHN0cmluZz5lbjwvc3RyaW5nPgogICAgPGtleT5DRkJ1bmRsZUV4ZWN1dGFibGU8L2tleT4KICAgIDxzdHJpbmc+V2ViVmlld0FwcDwvc3RyaW5nPgogICAgPGtleT5DRkJ1bmRsZUlkZW50aWZpZXI8L2tleT4KICAgIDxzdHJpbmc+QlVORExFSURfUExBQ0VIT0xERVI8L3N0cmluZz4KICAgIDxrZXk+Q0ZCdW5kbGVJbmZvRGljdGlvbmFyeVZlcnNpb248L2tleT4KICAgIDxzdHJpbmc+Ni4wPC9zdHJpbmc+CiAgICA8a2V5PkNGQnVuZGxlTmFtZTwva2V5PgogICAgPHN0cmluZz5BUFBOQU1FX1BMQUNFSE9MREVSPC9zdHJpbmc+CiAgICA8a2V5PkNGQnVuZGxlUGFja2FnZVR5cGU8L2tleT4KICAgIDxzdHJpbmc+QVBQTDwvc3RyaW5nPgogICAgPGtleT5DRkJ1bmRsZVNob3J0VmVyc2lvblN0cmluZzwva2V5PgogICAgPHN0cmluZz4xLjA8L3N0cmluZz4KICAgIDxrZXk+Q0ZCdW5kbGVWZXJzaW9uPC9rZXk+CiAgICA8c3RyaW5nPjE8L3N0cmluZz4KICAgIDxrZXk+TFNSZXF1aXJlc0lQaG9uZU9TPC9rZXk+CiAgICA8dHJ1ZS8+CiAgICA8a2V5PlVJTGF1bmNoU2NyZWVuPC9rZXk+CiAgICA8ZGljdC8+CiAgICA8a2V5PlVJU3VwcG9ydGVkSW50ZXJmYWNlT3JpZW50YXRpb25zPC9rZXk+CiAgICA8YXJyYXk+CiAgICAgICAgPHN0cmluZz5VSUludGVyZmFjZU9yaWVudGF0aW9uUG9ydHJhaXQ8L3N0cmluZz4KICAgICAgICA8c3RyaW5nPlVJSW50ZXJmYWNlT3JpZW50YXRpb25MYW5kc2NhcGVMZWZ0PC9zdHJpbmc+CiAgICAgICAgPHN0cmluZz5VSUludGVyZmFjZU9yaWVudGF0aW9uTGFuZHNjYXBlUmlnaHQ8L3N0cmluZz4KICAgIDwvYXJyYXk+CiAgICA8a2V5Pk5TQXBwVHJhbnNwb3J0U2VjdXJpdHk8L2tleT4KICAgIDxkaWN0PgogICAgICAgIDxrZXk+TlNBbGxvd3NBcmJpdHJhcnlMb2Fkczwva2V5PgogICAgICAgIDx0cnVlLz4KICAgIDwvZGljdD4KPC9kaWN0Pgo8L3BsaXN0Pgo=' | base64 -D > WebViewApp/Info.plist
+          printf '%s' 'Ly8gISQqVVRGOCokIQp7CglhcmNoaXZlVmVyc2lvbiA9IDE7CgljbGFzc2VzID0gewoJfTsKCW9iamVjdFZlcnNpb24gPSA1NjsKCW9iamVjdHMgPSB7CgovKiBCZWdpbiBQQlhCdWlsZEZpbGUgc2VjdGlvbiAqLwoJCUExMDAwMSAvKiBBcHBEZWxlZ2F0ZS5zd2lmdCBpbiBTb3VyY2VzICovID0ge2lzYSA9IFBCWEJ1aWxkRmlsZTsgZmlsZVJlZiA9IEEyMDAwMSAvKiBBcHBEZWxlZ2F0ZS5zd2lmdCAqLzsgfTsKCQlBMTAwMDIgLyogV2ViVmlld0NvbnRyb2xsZXIuc3dpZnQgaW4gU291cmNlcyAqLyA9IHtpc2EgPSBQQlhCdWlsZEZpbGU7IGZpbGVSZWYgPSBBMjAwMDIgLyogV2ViVmlld0NvbnRyb2xsZXIuc3dpZnQgKi87IH07Ci8qIEVuZCBQQlhCdWlsZEZpbGUgc2VjdGlvbiAqLwoKLyogQmVnaW4gUEJYRmlsZVJlZmVyZW5jZSBzZWN0aW9uICovCgkJQTIwMDAxIC8qIEFwcERlbGVnYXRlLnN3aWZ0ICovID0ge2lzYSA9IFBCWEZpbGVSZWZlcmVuY2U7IGxhc3RLbm93bkZpbGVUeXBlID0gc291cmNlY29kZS5zd2lmdDsgcGF0aCA9IEFwcERlbGVnYXRlLnN3aWZ0OyBzb3VyY2VUcmVlID0gIjxncm91cD4iOyB9OwoJCUEyMDAwMiAvKiBXZWJWaWV3Q29udHJvbGxlci5zd2lmdCAqLyA9IHtpc2EgPSBQQlhGaWxlUmVmZXJlbmNlOyBsYXN0S25vd25GaWxlVHlwZSA9IHNvdXJjZWNvZGUuc3dpZnQ7IHBhdGggPSBXZWJWaWV3Q29udHJvbGxlci5zd2lmdDsgc291cmNlVHJlZSA9ICI8Z3JvdXA+IjsgfTsKCQlBMjAwMDMgLyogSW5mby5wbGlzdCAqLyA9IHtpc2EgPSBQQlhGaWxlUmVmZXJlbmNlOyBsYXN0S25vd25GaWxlVHlwZSA9IHRleHQucGxpc3QueG1sOyBwYXRoID0gSW5mby5wbGlzdDsgc291cmNlVHJlZSA9ICI8Z3JvdXA+IjsgfTsKCQlBMjAwMDQgLyogV2ViVmlld0FwcC5hcHAgKi8gPSB7aXNhID0gUEJYRmlsZVJlZmVyZW5jZTsgZXhwbGljaXRGaWxlVHlwZSA9IHdyYXBwZXIuYXBwbGljYXRpb247IGluY2x1ZGVJbkluZGV4ID0gMDsgcGF0aCA9IFdlYlZpZXdBcHAuYXBwOyBzb3VyY2VUcmVlID0gQlVJTFRfUFJPRFVDVFNfRElSOyB9OwovKiBFbmQgUEJYRmlsZVJlZmVyZW5jZSBzZWN0aW9uICovCgovKiBCZWdpbiBQQlhGcmFtZXdvcmtzQnVpbGRQaGFzZSBzZWN0aW9uICovCgkJQTMwMDAxIC8qIEZyYW1ld29ya3MgKi8gPSB7CgkJCWlzYSA9IFBCWEZyYW1ld29ya3NCdWlsZFBoYXNlOwoJCQlidWlsZEFjdGlvbk1hc2sgPSAyMTQ3NDgzNjQ3OwoJCQlmaWxlcyA9ICgKCQkJKTsKCQkJcnVuT25seUZvckRlcGxveW1lbnRQb3N0cHJvY2Vzc2luZyA9IDA7CgkJfTsKLyogRW5kIFBCWEZyYW1ld29ya3NCdWlsZFBoYXNlIHNlY3Rpb24gKi8KCi8qIEJlZ2luIFBCWEdyb3VwIHNlY3Rpb24gKi8KCQlBNDAwMDEgPSB7CgkJCWlzYSA9IFBCWEdyb3VwOwoJCQljaGlsZHJlbiA9ICgKCQkJCUEyMDAwMSAvKiBBcHBEZWxlZ2F0ZS5zd2lmdCAqLywKCQkJCUEyMDAwMiAvKiBXZWJWaWV3Q29udHJvbGxlci5zd2lmdCAqLywKCQkJCUEyMDAwMyAvKiBJbmZvLnBsaXN0ICovLAoJCQkpOwoJCQlwYXRoID0gV2ViVmlld0FwcDsKCQkJc291cmNlVHJlZSA9ICI8Z3JvdXA+IjsKCQl9OwoJCUE0MDAwMiAvKiBQcm9kdWN0cyAqLyA9IHsKCQkJaXNhID0gUEJYR3JvdXA7CgkJCWNoaWxkcmVuID0gKAoJCQkJQTIwMDA0IC8qIFdlYlZpZXdBcHAuYXBwICovLAoJCQkpOwoJCQluYW1lID0gUHJvZHVjdHM7CgkJCXNvdXJjZVRyZWUgPSAiPGdyb3VwPiI7CgkJfTsKCQlBNDAwMDMgPSB7CgkJCWlzYSA9IFBCWEdyb3VwOwoJCQljaGlsZHJlbiA9ICgKCQkJCUE0MDAwMSwKCQkJCUE0MDAwMiwKCQkJKTsKCQkJc291cmNlVHJlZSA9ICI8Z3JvdXA+IjsKCQl9OwovKiBFbmQgUEJYR3JvdXAgc2VjdGlvbiAqLwoKLyogQmVnaW4gUEJYTmF0aXZlVGFyZ2V0IHNlY3Rpb24gKi8KCQlBNTAwMDEgLyogV2ViVmlld0FwcCAqLyA9IHsKCQkJaXNhID0gUEJYTmF0aXZlVGFyZ2V0OwoJCQlidWlsZENvbmZpZ3VyYXRpb25MaXN0ID0gQTcwMDAxIC8qIEJ1aWxkIGNvbmZpZ3VyYXRpb24gbGlzdCBmb3IgUEJYTmF0aXZlVGFyZ2V0IFwiV2ViVmlld0FwcFwiICovOwoJCQlidWlsZFBoYXNlcyA9ICgKCQkJCUEzMDAwMSAvKiBGcmFtZXdvcmtzICovLAoJCQkJQTYwMDAxIC8qIFNvdXJjZXMgKi8sCgkJCQlBNjAwMDIgLyogUmVzb3VyY2VzICovLAoJCQkpOwoJCQlidWlsZFJ1bGVzID0gKAoJCQkpOwoJCQlkZXBlbmRlbmNpZXMgPSAoCgkJCSk7CgkJCW5hbWUgPSBXZWJWaWV3QXBwOwoJCQlwcm9kdWN0TmFtZSA9IFdlYlZpZXdBcHA7CgkJCXByb2R1Y3RSZWZlcmVuY2UgPSBBMjAwMDQgLyogV2ViVmlld0FwcC5hcHAgKi87CgkJCXByb2R1Y3RUeXBlID0gImNvbS5hcHBsZS5wcm9kdWN0LXR5cGUuYXBwbGljYXRpb24iOwoJCX07Ci8qIEVuZCBQQlhOYXRpdmVUYXJnZXQgc2VjdGlvbiAqLwoKLyogQmVnaW4gUEJYUHJvamVjdCBzZWN0aW9uICovCgkJQTgwMDAxIC8qIFByb2plY3Qgb2JqZWN0ICovID0gewoJCQlpc2EgPSBQQlhQcm9qZWN0OwoJCQlhdHRyaWJ1dGVzID0gewoJCQkJQnVpbGRJbmRlcGVuZGVudFRhcmdldHNJblBhcmFsbGVsID0gMTsKCQkJCUxhc3RTd2lmdFVwZGF0ZUNoZWNrID0gMTUwMDsKCQkJCUxhc3RVcGdyYWRlQ2hlY2sgPSAxNTAwOwoJCQl9OwoJCQlidWlsZENvbmZpZ3VyYXRpb25MaXN0ID0gQTcwMDAzIC8qIEJ1aWxkIGNvbmZpZ3VyYXRpb24gbGlzdCBmb3IgUEJYUHJvamVjdCBcIldlYlZpZXdBcHBcIiAqLzsKCQkJY29tcGF0aWJpbGl0eVZlcnNpb24gPSAiWGNvZGUgMTQuMCI7CgkJCWRldmVsb3BtZW50UmVnaW9uID0gZW47CgkJCWhhc1NjYW5uZWRGb3JFbmNvZGluZ3MgPSAwOwoJCQlrbm93blJlZ2lvbnMgPSAoCgkJCQllbiwKCQkJCUJhc2UsCgkJCSk7CgkJCW1haW5Hcm91cCA9IEE0MDAwMzsKCQkJcHJvZHVjdFJlZkdyb3VwID0gQTQwMDAyIC8qIFByb2R1Y3RzICovOwoJCQlwcm9qZWN0RGlyUGF0aCA9ICIiOwoJCQlwcm9qZWN0Um9vdCA9ICIiOwoJCQl0YXJnZXRzID0gKAoJCQkJQTUwMDAxIC8qIFdlYlZpZXdBcHAgKi8sCgkJCSk7CgkJfTsKLyogRW5kIFBCWFByb2plY3Qgc2VjdGlvbiAqLwoKLyogQmVnaW4gUEJYUmVzb3VyY2VzQnVpbGRQaGFzZSBzZWN0aW9uICovCgkJQTYwMDAyIC8qIFJlc291cmNlcyAqLyA9IHsKCQkJaXNhID0gUEJYUmVzb3VyY2VzQnVpbGRQaGFzZTsKCQkJYnVpbGRBY3Rpb25NYXNrID0gMjE0NzQ4MzY0NzsKCQkJZmlsZXMgPSAoCgkJCSk7CgkJCXJ1bk9ubHlGb3JEZXBsb3ltZW50UG9zdHByb2Nlc3NpbmcgPSAwOwoJCX07Ci8qIEVuZCBQQlhSZXNvdXJjZXNCdWlsZFBoYXNlIHNlY3Rpb24gKi8KCi8qIEJlZ2luIFBCWFNvdXJjZXNCdWlsZFBoYXNlIHNlY3Rpb24gKi8KCQlBNjAwMDEgLyogU291cmNlcyAqLyA9IHsKCQkJaXNhID0gUEJYU291cmNlc0J1aWxkUGhhc2U7CgkJCWJ1aWxkQWN0aW9uTWFzayA9IDIxNDc0ODM2NDc7CgkJCWZpbGVzID0gKAoJCQkJQTEwMDAxIC8qIEFwcERlbGVnYXRlLnN3aWZ0IGluIFNvdXJjZXMgKi8sCgkJCQlBMTAwMDIgLyogV2ViVmlld0NvbnRyb2xsZXIuc3dpZnQgaW4gU291cmNlcyAqLywKCQkJKTsKCQkJcnVuT25seUZvckRlcGxveW1lbnRQb3N0cHJvY2Vzc2luZyA9IDA7CgkJfTsKLyogRW5kIFBCWFNvdXJjZXNCdWlsZFBoYXNlIHNlY3Rpb24gKi8KCi8qIEJlZ2luIFhDQnVpbGRDb25maWd1cmF0aW9uIHNlY3Rpb24gKi8KCQlBOTAwMDEgLyogRGVidWcgKi8gPSB7CgkJCWlzYSA9IFhDQnVpbGRDb25maWd1cmF0aW9uOwoJCQlidWlsZFNldHRpbmdzID0gewoJCQkJQUxXQVlTX1NFQVJDSF9VU0VSX1BBVEhTID0gTk87CgkJCQlDTEFOR19FTkFCTEVfTU9EVUxFUyA9IFlFUzsKCQkJCUNMQU5HX0VOQUJMRV9PQkpDX0FSQyA9IFlFUzsKCQkJCUNPUFlfUEhBU0VfU1RSSVAgPSBOTzsKCQkJCURFQlVHX0lORk9STUFUSU9OX0ZPUk1BVCA9IGR3YXJmOwoJCQkJRU5BQkxFX1NUUklDVF9PQkpDX01TR1NFTkQgPSBZRVM7CgkJCQlFTkFCTEVfVEVTVEFCSUxJVFkgPSBZRVM7CgkJCQlFTkFCTEVfVVNFUl9TQ1JJUFRfU0FOREJPWElORyA9IE5POwoJCQkJR0NDX0NfTEFOR1VBR0VfU1RBTkRBUkQgPSBnbnUxNzsKCQkJCUdDQ19EWU5BTUlDX05PX1BJQyA9IE5POwoJCQkJR0NDX09QVElNSVpBVElPTl9MRVZFTCA9IDA7CgkJCQlHQ0NfV0FSTl9BQk9VVF9SRVRVUk5fVFlQRSA9IFlFU19FUlJPUjsKCQkJCUlQSE9ORU9TX0RFUExPWU1FTlRfVEFSR0VUID0gMTUuMDsKCQkJCU1UTF9FTkFCTEVfREVCVUdfSU5GTyA9IElOQ0xVREVfU09VUkNFOwoJCQkJTVRMX0ZBU1RfTUFUSCA9IFlFUzsKCQkJCU9OTFlfQUNUSVZFX0FSQ0ggPSBZRVM7CgkJCQlTREtST09UID0gaXBob25lb3M7CgkJCQlTV0lGVF9PUFRJTUlaQVRJT05fTEVWRUwgPSAiLU9ub25lIjsKCQkJfTsKCQkJbmFtZSA9IERlYnVnOwoJCX07CgkJQTkwMDAyIC8qIFJlbGVhc2UgKi8gPSB7CgkJCWlzYSA9IFhDQnVpbGRDb25maWd1cmF0aW9uOwoJCQlidWlsZFNldHRpbmdzID0gewoJCQkJQUxXQVlTX1NFQVJDSF9VU0VSX1BBVEhTID0gTk87CgkJCQlDTEFOR19FTkFCTEVfTU9EVUxFUyA9IFlFUzsKCQkJCUNMQU5HX0VOQUJMRV9PQkpDX0FSQyA9IFlFUzsKCQkJCUNPUFlfUEhBU0VfU1RSSVAgPSBOTzsKCQkJCURFQlVHX0lORk9STUFUSU9OX0ZPUk1BVCA9ICJkd2FyZi13aXRoLWRzeW0iOwoJCQkJRU5BQkxFX05TX0FTU0VSVElPTlMgPSBOTzsKCQkJCUVOQUJMRV9TVFJJQ1RfT0JKQ19NU0dTRU5EID0gWUVTOwoJCQkJRU5BQkxFX1VTRVJfU0NSSVBUX1NBTkRCT1hJTkcgPSBOTzsKCQkJCUdDQ19DX0xBTkdVQUdFX1NUQU5EQVJEID0gZ251MTc7CgkJCQlHQ0NfV0FSTl9BQk9VVF9SRVRVUk5fVFlQRSA9IFlFU19FUlJPUjsKCQkJCUlQSE9ORU9TX0RFUExPWU1FTlRfVEFSR0VUID0gMTUuMDsKCQkJCU1UTF9FTkFCTEVfREVCVUdfSU5GTyA9IE5POwoJCQkJTVRMX0ZBU1RfTUFUSCA9IFlFUzsKCQkJCVNES1JPT1QgPSBpcGhvbmVvczsKCQkJCVNXSUZUX0NPTVBJTEFUSU9OX01PREUgPSB3aG9sZW1vZHVsZTsKCQkJCVZBTElEQVRFX1BST0RVQ1QgPSBZRVM7CgkJCX07CgkJCW5hbWUgPSBSZWxlYXNlOwoJCX07CgkJQTkwMDAzIC8qIERlYnVnICovID0gewoJCQlpc2EgPSBYQ0J1aWxkQ29uZmlndXJhdGlvbjsKCQkJYnVpbGRTZXR0aW5ncyA9IHsKCQkJCUNPREVfU0lHTl9JREVOVElUWSA9ICItIjsKCQkJCUNPREVfU0lHTl9TVFlMRSA9IE1hbnVhbDsKCQkJCUNPREVfU0lHTklOR19BTExPV0VEID0gTk87CgkJCQlDT0RFX1NJR05JTkdfUkVRVUlSRUQgPSBOTzsKCQkJCUNVUlJFTlRfUFJPSkVDVF9WRVJTSU9OID0gMTsKCQkJCUdFTkVSQVRFX0lORk9QTElTVF9GSUxFID0gTk87CgkJCQlJTkZPUExJU1RfRklMRSA9IFdlYlZpZXdBcHAvSW5mby5wbGlzdDsKCQkJCUlQSE9ORU9TX0RFUExPWU1FTlRfVEFSR0VUID0gMTUuMDsKCQkJCU1BUktFVElOR19WRVJTSU9OID0gMS4wOwoJCQkJT1RIRVJfTERGTEFHUyA9ICItT2JqQyI7CgkJCQlQUk9EVUNUX0JVTkRMRV9JREVOVElGSUVSID0gQlVORExFSURfUExBQ0VIT0xERVI7CgkJCQlQUk9EVUNUX05BTUUgPSAiXCQoVEFSR0VUX05BTUUpIjsKCQkJCVNXSUZUX1ZFUlNJT04gPSA1LjA7CgkJCQlUQVJHRVRFRF9ERVZJQ0VfRkFNSUxZID0gIjEsMiI7CgkJCX07CgkJCW5hbWUgPSBEZWJ1ZzsKCQl9OwoJCUE5MDAwNCAvKiBSZWxlYXNlICovID0gewoJCQlpc2EgPSBYQ0J1aWxkQ29uZmlndXJhdGlvbjsKCQkJYnVpbGRTZXR0aW5ncyA9IHsKCQkJCUNPREVfU0lHTl9JREVOVElUWSA9ICItIjsKCQkJCUNPREVfU0lHTl9TVFlMRSA9IE1hbnVhbDsKCQkJCUNPREVfU0lHTklOR19BTExPV0VEID0gTk87CgkJCQlDT0RFX1NJR05JTkdfUkVRVUlSRUQgPSBOTzsKCQkJCUNVUlJFTlRfUFJPSkVDVF9WRVJTSU9OID0gMTsKCQkJCUdFTkVSQVRFX0lORk9QTElTVF9GSUxFID0gTk87CgkJCQlJTkZPUExJU1RfRklMRSA9IFdlYlZpZXdBcHAvSW5mby5wbGlzdDsKCQkJCUlQSE9ORU9TX0RFUExPWU1FTlRfVEFSR0VUID0gMTUuMDsKCQkJCU1BUktFVElOR19WRVJTSU9OID0gMS4wOwoJCQkJT1RIRVJfTERGTEFHUyA9ICItT2JqQyI7CgkJCQlQUk9EVUNUX0JVTkRMRV9JREVOVElGSUVSID0gQlVORExFSURfUExBQ0VIT0xERVI7CgkJCQlQUk9EVUNUX05BTUUgPSAiXCQoVEFSR0VUX05BTUUpIjsKCQkJCVNXSUZUX1ZFUlNJT04gPSA1LjA7CgkJCQlUQVJHRVRFRF9ERVZJQ0VfRkFNSUxZID0gIjEsMiI7CgkJCX07CgkJCW5hbWUgPSBSZWxlYXNlOwoJCX07Ci8qIEVuZCBYQ0J1aWxkQ29uZmlndXJhdGlvbiBzZWN0aW9uICovCgovKiBCZWdpbiBYQ0NvbmZpZ3VyYXRpb25MaXN0IHNlY3Rpb24gKi8KCQlBNzAwMDEgLyogQnVpbGQgY29uZmlndXJhdGlvbiBsaXN0IGZvciBQQlhOYXRpdmVUYXJnZXQgXCJXZWJWaWV3QXBwXCIgKi8gPSB7CgkJCWlzYSA9IFhDQ29uZmlndXJhdGlvbkxpc3Q7CgkJCWJ1aWxkQ29uZmlndXJhdGlvbnMgPSAoCgkJCQlBOTAwMDMgLyogRGVidWcgKi8sCgkJCQlBOTAwMDQgLyogUmVsZWFzZSAqLywKCQkJKTsKCQkJZGVmYXVsdENvbmZpZ3VyYXRpb25Jc1Zpc2libGUgPSAwOwoJCQlkZWZhdWx0Q29uZmlndXJhdGlvbk5hbWUgPSBSZWxlYXNlOwoJCQl9OwoJCUE3MDAwMyAvKiBCdWlsZCBjb25maWd1cmF0aW9uIGxpc3QgZm9yIFBCWFByb2plY3QgXCJXZWJWaWV3QXBwXCIgKi8gPSB7CgkJCWlzYSA9IFhDQ29uZmlndXJhdGlvbkxpc3Q7CgkJCWJ1aWxkQ29uZmlndXJhdGlvbnMgPSAoCgkJCQlBOTAwMDEgLyogRGVidWcgKi8sCgkJCQlBOTAwMDIgLyogUmVsZWFzZSAqLywKCQkJKTsKCQkJZGVmYXVsdENvbmZpZ3VyYXRpb25Jc1Zpc2libGUgPSAwOwoJCQlkZWZhdWx0Q29uZmlndXJhdGlvbk5hbWUgPSBSZWxlYXNlOwoJCQl9OwovKiBFbmQgWENDb25maWd1cmF0aW9uTGlzdCBzZWN0aW9uICovCgl9OwoJcm9vdE9iamVjdCA9IEE4MDAwMSAvKiBQcm9qZWN0IG9iamVjdCAqLzsKfQo=' | base64 -D > WebViewApp.xcodeproj/project.pbxproj
 
-          cat > WebViewApp/AppDelegate.swift << 'SWIFT'
-import UIKit
-
-@main
-class AppDelegate: UIResponder, UIApplicationDelegate {
-    var window: UIWindow?
-
-    func application(_ application: UIApplication,
-                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        let webVC = WebViewController()
-        webVC.urlString = "WEBSITE_URL_PLACEHOLDER"
-        window = UIWindow(frame: UIScreen.main.bounds)
-        window?.rootViewController = UINavigationController(rootViewController: webVC)
-        window?.makeKeyAndVisible()
-        return true
-    }
-}
-SWIFT
-
+          # Replace placeholders with actual values
           sed -i '' "s|WEBSITE_URL_PLACEHOLDER|${{ steps.inputs.outputs.url }}|g" WebViewApp/AppDelegate.swift
-
-          cat > WebViewApp/WebViewController.swift << 'SWIFT'
-import UIKit
-import WebKit
-
-class WebViewController: UIViewController, WKNavigationDelegate {
-    var urlString: String = ""
-    private var webView: WKWebView!
-    private var progressView: UIProgressView!
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        title = "APPNAME_PLACEHOLDER"
-        view.backgroundColor = .systemBackground
-
-        progressView = UIProgressView(progressViewStyle: .default)
-        progressView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(progressView)
-
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        webView = WKWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = self
-        webView.translatesAutoresizingMaskIntoConstraints = false
-        webView.allowsBackForwardNavigationGestures = true
-        view.addSubview(webView)
-
-        NSLayoutConstraint.activate([
-            progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
-            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-
-        if let url = URL(string: urlString) {
-            webView.load(URLRequest(url: url))
-        }
-        webView.addObserver(self, forKeyPath: "estimatedProgress", options: .new, context: nil)
-    }
-
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?,
-                              change: [NSKeyValueChangeKey: Any]?, context: UnsafeMutableRawPointer?) {
-        if keyPath == "estimatedProgress" {
-            progressView.progress = Float(webView.estimatedProgress)
-            progressView.isHidden = webView.estimatedProgress >= 1.0
-        }
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        progressView.isHidden = true
-    }
-}
-SWIFT
-
           sed -i '' "s|APPNAME_PLACEHOLDER|${{ steps.inputs.outputs.name }}|g" WebViewApp/WebViewController.swift
-
-          # ---- Info.plist ----
-
-          cat > WebViewApp/Info.plist << 'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>WebViewApp</string>
-    <key>CFBundleIdentifier</key>
-    <string>BUNDLEID_PLACEHOLDER</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>APPNAME_PLACEHOLDER</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>UILaunchScreen</key>
-    <dict/>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
-</dict>
-</plist>
-PLIST
-
           sed -i '' "s|BUNDLEID_PLACEHOLDER|${{ steps.inputs.outputs.bid }}|g" WebViewApp/Info.plist
           sed -i '' "s|APPNAME_PLACEHOLDER|${{ steps.inputs.outputs.name }}|g" WebViewApp/Info.plist
-
-          # ---- project.pbxproj ----
-
-          mkdir -p WebViewApp.xcodeproj
-          cat > WebViewApp.xcodeproj/project.pbxproj << 'PBX'
-// !$*UTF8*$!
-{
-	archiveVersion = 1;
-	classes = {
-	};
-	objectVersion = 56;
-	objects = {
-
-/* Begin PBXBuildFile section */
-		A10001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20001 /* AppDelegate.swift */; };
-		A10002 /* WebViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20002 /* WebViewController.swift */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXFileReference section */
-		A20001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		A20002 /* WebViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebViewController.swift; sourceTree = "<group>"; };
-		A20003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A20004 /* WebViewApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebViewApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		A30001 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXGroup section */
-		A40001 = {
-			isa = PBXGroup;
-			children = (
-				A20001 /* AppDelegate.swift */,
-				A20002 /* WebViewController.swift */,
-				A20003 /* Info.plist */,
-			);
-			path = WebViewApp;
-			sourceTree = "<group>";
-		};
-		A40002 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A20004 /* WebViewApp.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		A40003 = {
-			isa = PBXGroup;
-			children = (
-				A40001,
-				A40002,
-			);
-			sourceTree = "<group>";
-		};
-/* End PBXGroup section */
-
-/* Begin PBXNativeTarget section */
-		A50001 /* WebViewApp */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */;
-			buildPhases = (
-				A30001 /* Frameworks */,
-				A60001 /* Sources */,
-				A60002 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = WebViewApp;
-			productName = WebViewApp;
-			productReference = A20004 /* WebViewApp.app */;
-			productType = "com.apple.product-type.application";
-		};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-		A80001 /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
-			};
-			buildConfigurationList = A70003 /* Build configuration list for PBXProject "WebViewApp" */;
-			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				en,
-				Base,
-			);
-			mainGroup = A40003;
-			productRefGroup = A40002 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				A50001 /* WebViewApp */,
-			);
-		};
-/* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-		A60002 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		A60001 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				A10001 /* AppDelegate.swift in Sources */,
-				A10002 /* WebViewController.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin XCBuildConfiguration section */
-		A90001 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-			};
-			name = Debug;
-		};
-		A90002 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		A90003 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = WebViewApp/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		A90004 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Manual;
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = WebViewApp/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = "-ObjC";
-				PRODUCT_BUNDLE_IDENTIFIER = BUNDLEID_PLACEHOLDER;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-/* End XCBuildConfiguration section */
-
-/* Begin XCConfigurationList section */
-		A70001 /* Build configuration list for PBXNativeTarget "WebViewApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A90003 /* Debug */,
-				A90004 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-			};
-		A70003 /* Build configuration list for PBXProject "WebViewApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A90001 /* Debug */,
-				A90002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-			};
-/* End XCConfigurationList section */
-	};
-	rootObject = A80001 /* Project object */;
-}
-PBX
-
-          # Replace bundle ID placeholder in project file
           sed -i '' "s|BUNDLEID_PLACEHOLDER|${{ steps.inputs.outputs.bid }}|g" WebViewApp.xcodeproj/project.pbxproj
 
           # Verify project structure
-          echo "Project structure:"
-          find . -type f | head -20
-          echo ""
-          echo "project.pbxproj first line:"
-          head -1 WebViewApp.xcodeproj/project.pbxproj
+          echo "Project files:"
+          find . -type f | head -10
 
       - name: Build IPA (unsigned)
         run: |
@@ -444,15 +69,13 @@ PBX
           echo "Build log tail:"
           tail -30 build.log
 
-          # Verify the .app was produced
           APP_PATH="build/Build/Products/Release-iphoneos/WebViewApp.app"
           if [ ! -d "$APP_PATH" ]; then
             echo "ERROR: .app not found at $APP_PATH"
-            echo "Contents of build/Build/Products:"
-            find build/Build/Products -type d -name "*.app" 2>/dev/null || echo "(no .app found anywhere)"
+            find build/Build/Products -type d -name "*.app" 2>/dev/null || echo "(no .app found)"
             exit 1
           fi
-          echo "SUCCESS: .app found at $APP_PATH"
+          echo "SUCCESS: .app built at $APP_PATH"
           ls -la "$APP_PATH"
 
       - name: Create IPA
@@ -474,7 +97,7 @@ PBX
 
       - name: Build Summary
         run: |
-          echo "## Build Complete :rocket:" >> "$GITHUB_STEP_SUMMARY"
+          echo "## Build Complete" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- **App Name:** ${{ steps.inputs.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Website URL:** ${{ steps.inputs.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
